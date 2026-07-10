@@ -148,12 +148,16 @@ func (r *Runner) complete(ctx context.Context, transcript Transcript) (Message, 
 	stream := r.client.Chat.Completions.NewStreaming(ctx, params)
 	defer stream.Close()
 	var acc openai.ChatCompletionAccumulator
+	var calls streamedToolCalls
 	for stream.Next() {
 		chunk := stream.Current()
 		if !acc.AddChunk(chunk) {
 			return Message{}, errors.New("agent: invalid streamed completion sequence")
 		}
 		for _, choice := range chunk.Choices {
+			if choice.Index == 0 {
+				calls.Add(choice.Delta.ToolCalls)
+			}
 			if choice.Index == 0 && choice.Delta.Content != "" {
 				if err := r.emit(Event{Type: EventTextDelta, Delta: choice.Delta.Content}); err != nil {
 					return Message{}, err
@@ -168,13 +172,43 @@ func (r *Runner) complete(ctx context.Context, transcript Transcript) (Message, 
 		return Message{}, errors.New("agent: completion returned no choices")
 	}
 	message := Message{Role: RoleAssistant, Content: acc.Choices[0].Message.Content}
-	for _, call := range acc.Choices[0].Message.ToolCalls {
-		message.ToolCalls = append(message.ToolCalls, ToolCall{ID: call.ID, Name: call.Function.Name, Arguments: call.Function.Arguments})
-	}
+	message.ToolCalls = calls.Calls()
 	if err := r.emit(Event{Type: EventCompletionFinished, Message: message}); err != nil {
 		return Message{}, err
 	}
 	return message, nil
+}
+
+// streamedToolCalls keeps logically separate calls apart even when an upstream
+// stream reuses a tool-call index for parallel calls.
+type streamedToolCalls struct{ slots map[int][]ToolCall }
+
+func (s *streamedToolCalls) Add(deltas []openai.ChatCompletionChunkChoiceDeltaToolCall) {
+	if s.slots == nil {
+		s.slots = map[int][]ToolCall{}
+	}
+	for _, delta := range deltas {
+		index := int(delta.Index)
+		calls := s.slots[index]
+		if delta.Function.Name != "" && (len(calls) == 0 || calls[len(calls)-1].Name != "") {
+			calls = append(calls, ToolCall{ID: delta.ID, Name: delta.Function.Name, Arguments: delta.Function.Arguments})
+		} else if len(calls) > 0 {
+			current := &calls[len(calls)-1]
+			if delta.ID != "" {
+				current.ID = delta.ID
+			}
+			current.Name += delta.Function.Name
+			current.Arguments += delta.Function.Arguments
+		}
+		s.slots[index] = calls
+	}
+}
+func (s *streamedToolCalls) Calls() []ToolCall {
+	var calls []ToolCall
+	for index := 0; index < len(s.slots); index++ {
+		calls = append(calls, s.slots[index]...)
+	}
+	return calls
 }
 
 func (r *Runner) executeTools(ctx context.Context, calls []ToolCall) ([]Message, error) {
