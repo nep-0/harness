@@ -21,8 +21,9 @@ const (
 )
 
 type ToolCall struct {
-	ID, Name  string
-	Arguments json.RawMessage
+	ID, Name string
+	// Arguments is untrusted model output. It is validated before a handler runs.
+	Arguments string
 }
 type Message struct {
 	Role       Role

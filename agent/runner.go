@@ -169,7 +169,7 @@ func (r *Runner) complete(ctx context.Context, transcript Transcript) (Message, 
 	}
 	message := Message{Role: RoleAssistant, Content: acc.Choices[0].Message.Content}
 	for _, call := range acc.Choices[0].Message.ToolCalls {
-		message.ToolCalls = append(message.ToolCalls, ToolCall{ID: call.ID, Name: call.Function.Name, Arguments: json.RawMessage(call.Function.Arguments)})
+		message.ToolCalls = append(message.ToolCalls, ToolCall{ID: call.ID, Name: call.Function.Name, Arguments: call.Function.Arguments})
 	}
 	if err := r.emit(Event{Type: EventCompletionFinished, Message: message}); err != nil {
 		return Message{}, err
@@ -206,7 +206,7 @@ func (r *Runner) callTool(ctx context.Context, call ToolCall) (content string) {
 		return fmt.Sprintf("tool %q is not registered", call.Name)
 	}
 	var arguments any
-	if len(call.Arguments) == 0 || json.Unmarshal(call.Arguments, &arguments) != nil {
+	if call.Arguments == "" || json.Unmarshal([]byte(call.Arguments), &arguments) != nil {
 		return fmt.Sprintf("tool %q received invalid JSON arguments", call.Name)
 	}
 	defer func() {
@@ -214,7 +214,7 @@ func (r *Runner) callTool(ctx context.Context, call ToolCall) (content string) {
 			content = fmt.Sprintf("tool %q failed", call.Name)
 		}
 	}()
-	content, err := tool.Handler(ctx, call.Arguments)
+	content, err := tool.Handler(ctx, json.RawMessage(call.Arguments))
 	if err != nil {
 		return fmt.Sprintf("tool %q failed", call.Name)
 	}
@@ -262,7 +262,7 @@ func toOpenAIMessage(message Message) (openai.ChatCompletionMessageParamUnion, e
 	case RoleAssistant:
 		converted := openai.AssistantMessage(message.Content)
 		for _, call := range message.ToolCalls {
-			converted.OfAssistant.ToolCalls = append(converted.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: string(call.Arguments)}})
+			converted.OfAssistant.ToolCalls = append(converted.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}})
 		}
 		return converted, nil
 	default:
@@ -291,9 +291,6 @@ func cloneTranscript(transcript Transcript) Transcript {
 	for i, message := range transcript {
 		cloned[i] = message
 		cloned[i].ToolCalls = append([]ToolCall(nil), message.ToolCalls...)
-		for j := range cloned[i].ToolCalls {
-			cloned[i].ToolCalls[j].Arguments = append(json.RawMessage(nil), message.ToolCalls[j].Arguments...)
-		}
 	}
 	return cloned
 }

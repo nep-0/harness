@@ -47,7 +47,7 @@ func (c *OpenAICompactor) Compact(ctx context.Context, previousSummary string, t
 		case agent.RoleAssistant:
 			assistant := openai.AssistantMessage(message.Content)
 			for _, call := range message.ToolCalls {
-				assistant.OfAssistant.ToolCalls = append(assistant.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: string(call.Arguments)}})
+				assistant.OfAssistant.ToolCalls = append(assistant.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}})
 			}
 			messages = append(messages, assistant)
 		case agent.RoleTool:
