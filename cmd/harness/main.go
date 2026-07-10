@@ -11,6 +11,8 @@ import (
 	"github.com/nep-0/harness/cli"
 	"github.com/nep-0/harness/middleware"
 	"github.com/nep-0/harness/session"
+	"github.com/nep-0/harness/tools/ip"
+	"github.com/nep-0/harness/tools/weather"
 )
 
 func main() {
@@ -28,9 +30,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, "-window and -compact-tokens cannot be used together")
 		os.Exit(2)
 	}
-	config := agent.Config{APIKey: *apiKey, Model: *model, BaseURL: *baseURL, MaxTurns: *maxTurns, OnEvent: func(event agent.Event) error {
-		if event.Type == agent.EventTextDelta {
+	config := agent.Config{APIKey: *apiKey, Model: *model, BaseURL: *baseURL, MaxTurns: *maxTurns, Tools: []agent.Tool{weather.Client{}.Tool(), ip.Client{}.Tool()}, OnEvent: func(event agent.Event) error {
+		switch event.Type {
+		case agent.EventTextDelta:
 			_, err := fmt.Fprint(os.Stdout, event.Delta)
+			return err
+		case agent.EventToolStarted:
+			_, err := fmt.Fprintf(os.Stdout, "\n[calling tool: %s]\n", event.ToolCall.Name)
+			return err
+		case agent.EventToolFinished:
+			_, err := fmt.Fprintf(os.Stdout, "[tool finished: %s]\n", event.ToolCall.Name)
 			return err
 		}
 		return nil
