@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"

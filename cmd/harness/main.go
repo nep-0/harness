@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 
-	"harness/agent"
-	"harness/cli"
-	"harness/middleware"
-	"harness/session"
+	"github.com/nep-0/harness/agent"
+	"github.com/nep-0/harness/cli"
+	"github.com/nep-0/harness/middleware"
+	"github.com/nep-0/harness/session"
 )
 
 func main() {

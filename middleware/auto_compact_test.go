@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 type fixedCompactor struct{}

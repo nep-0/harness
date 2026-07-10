@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 // InteractiveAgent turns terminal lines into user messages. EOF and /exit end

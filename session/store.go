@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 var ErrNotFound = errors.New("session: not found")

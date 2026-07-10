@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 func TestSlidingWindowReturnsNewestMessages(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 // SlidingWindow retains only the newest MaxMessages in model-facing context.

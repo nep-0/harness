@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 // Compactor summarizes older conversation messages for use as model context.

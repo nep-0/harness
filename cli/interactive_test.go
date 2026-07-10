@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"harness/agent"
+	"github.com/nep-0/harness/agent"
 )
 
 func TestInteractiveAgentReadsMessagesAndExit(t *testing.T) {
