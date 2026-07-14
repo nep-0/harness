@@ -13,6 +13,9 @@ func TestNewRunnerValidatesConfig(t *testing.T) {
 	if _, err := NewRunner(WithAPIKey("key")); err == nil {
 		t.Fatal("expected missing model error")
 	}
+	if _, err := NewRunner(WithBaseURL("http://localhost:8080"), WithModel("local-model")); err != nil {
+		t.Fatalf("local endpoint without API key: %v", err)
+	}
 }
 
 func TestStreamedToolCallsSplitsReusedParallelIndex(t *testing.T) {

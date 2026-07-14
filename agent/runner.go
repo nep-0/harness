@@ -29,7 +29,7 @@ func NewRunner(options ...RunnerOption) (*Runner, error) {
 	for _, option := range options {
 		option(&config)
 	}
-	if config.APIKey == "" {
+	if config.APIKey == "" && config.BaseURL == "" {
 		return nil, errors.New("agent: APIKey is required")
 	}
 	if config.Model == "" {

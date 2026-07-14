@@ -132,6 +132,9 @@ type ContextMiddleware interface {
 }
 ```
 
+An API key is required for the default OpenAI endpoint. When `WithBaseURL` is
+set for a local OpenAI-compatible server, the key may be omitted.
+
 `AutoCompact` stores its generated summary and the canonical-message boundary
 it represents. After compaction, later requests reuse that summary until newly
 added messages exceed the configured approximate token budget. The summary
