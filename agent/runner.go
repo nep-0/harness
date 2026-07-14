@@ -21,6 +21,7 @@ type Runner struct {
 	config  runnerConfig
 	client  openai.Client
 	tools   map[string]Tool
+	runMu   sync.Mutex
 	eventMu sync.Mutex
 }
 
@@ -66,14 +67,14 @@ func NewRunner(options ...RunnerOption) (*Runner, error) {
 }
 
 // RunTurn returns the updated snapshot, or the partial snapshot when it fails.
-// It never waits for external input.
+// It never waits for external input. A Runner serializes calls because its
+// middleware state belongs to one active conversation at a time.
 func (r *Runner) RunTurn(ctx context.Context, snapshot RunSnapshot, messages []Message, options ...RunOption) (RunSnapshot, error) {
+	r.runMu.Lock()
+	defer r.runMu.Unlock()
 	settings := runOptions{}
 	for _, option := range options {
 		option(&settings)
-	}
-	if settings.snapshot.Transcript != nil || settings.snapshot.MiddlewareState != nil {
-		snapshot = settings.snapshot
 	}
 	for _, middleware := range r.config.Middlewares {
 		if err := middleware.UnmarshalState(snapshot.MiddlewareState[middleware.ID()]); err != nil {

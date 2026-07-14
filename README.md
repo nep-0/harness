@@ -149,11 +149,11 @@ Persist a run by passing a checkpoint and, later, resume with its snapshot:
 store := session.FileStore{Dir: ".sessions"}
 value := session.Session{ID: "project-chat"}
 
-_, err := runner.Run(ctx, myAgent,
-	agent.WithSnapshot(agent.RunSnapshot{
-		Transcript:      value.Transcript,
-		MiddlewareState: value.MiddlewareState,
-	}),
+snapshot := agent.RunSnapshot{
+	Transcript:      value.Transcript,
+	MiddlewareState: value.MiddlewareState,
+}
+snapshot, err := runner.RunTurn(ctx, snapshot, messages,
 	agent.WithCheckpoint(session.Checkpoint(store, &value)),
 )
 ```

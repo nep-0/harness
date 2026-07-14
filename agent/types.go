@@ -37,7 +37,7 @@ type Turn struct {
 	Done     bool
 }
 
-// Agent supplies messages for each application-controlled turn.
+// Agent is an optional autonomous policy used with Drive.
 type Agent interface {
 	Decide(context.Context, RunSnapshot) (Action, error)
 }
@@ -109,24 +109,15 @@ type ContextMiddleware interface {
 	UnmarshalState(json.RawMessage) error
 }
 
-// RunOption configures one invocation of Run.
+// RunOption configures one RunTurn invocation.
 type RunOption func(*runOptions)
 
 type runOptions struct {
-	snapshot   RunSnapshot
 	checkpoint func(context.Context, RunSnapshot) error
 }
 type RunSnapshot struct {
 	Transcript      Transcript
 	MiddlewareState map[string]json.RawMessage
-}
-
-// WithTranscript resumes a run from a previously saved canonical transcript.
-func WithTranscript(transcript Transcript) RunOption {
-	return func(options *runOptions) { options.snapshot.Transcript = cloneTranscript(transcript) }
-}
-func WithSnapshot(snapshot RunSnapshot) RunOption {
-	return func(options *runOptions) { options.snapshot = cloneSnapshot(snapshot) }
 }
 
 // WithCheckpoint is called after each durable transcript change.

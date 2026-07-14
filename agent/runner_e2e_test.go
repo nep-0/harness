@@ -57,6 +57,27 @@ func TestRunTurnExecutesToolsAndSendsFailuresBackToModel(t *testing.T) {
 	}
 }
 
+func TestRunTurnExecutesSuccessfulToolCall(t *testing.T) {
+	server := completionServer(t, func(call int, body request) []streamChunk {
+		if call == 1 {
+			return []streamChunk{{`{"role":"assistant","tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"echo","arguments":"{\\"value\\":\\"ok\\"}"}}]}`, "tool_calls"}}
+		}
+		if len(body.Messages) != 3 || body.Messages[2].ToolCallID != "call-1" {
+			t.Fatalf("tool request %#v", body.Messages)
+		}
+		return []streamChunk{{`{"role":"assistant","content":"done"}`, "stop"}}
+	})
+	defer server.Close()
+	runner := testRunner(t, server.URL, []Tool{{Name: "echo", Handler: func(_ context.Context, arguments json.RawMessage) (string, error) { return string(arguments), nil }}}, nil)
+	snapshot, err := runner.RunTurn(context.Background(), RunSnapshot{}, []Message{{Role: RoleUser, Content: "go"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Transcript[2].Content != `{"value":"ok"}` || snapshot.Transcript[3].Content != "done" {
+		t.Fatalf("transcript %#v", snapshot.Transcript)
+	}
+}
+
 func TestRunTurnHonorsCancellation(t *testing.T) {
 	started := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(started); <-r.Context().Done() }))
