@@ -80,7 +80,13 @@ func TestRunTurnExecutesSuccessfulToolCall(t *testing.T) {
 
 func TestRunTurnHonorsCancellation(t *testing.T) {
 	started := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(started); <-r.Context().Done() }))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		close(started)
+		<-r.Context().Done()
+	}))
 	defer server.Close()
 	runner := testRunner(t, server.URL, nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
