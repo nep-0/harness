@@ -8,10 +8,10 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/packages/param"
-	"github.com/openai/openai-go/shared"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
+	"github.com/openai/openai-go/v3/shared"
 )
 
 var toolNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -273,7 +273,7 @@ func (r *Runner) params(transcript Transcript) (openai.ChatCompletionNewParams, 
 			_ = json.Unmarshal(tool.Parameters, &parameters)
 			function.Parameters = parameters
 		}
-		params.Tools = append(params.Tools, openai.ChatCompletionToolParam{Function: function})
+		params.Tools = append(params.Tools, openai.ChatCompletionFunctionTool(function))
 	}
 	return params, nil
 }
@@ -294,7 +294,7 @@ func toOpenAIMessage(message Message) (openai.ChatCompletionMessageParamUnion, e
 	case RoleAssistant:
 		converted := openai.AssistantMessage(message.Content)
 		for _, call := range message.ToolCalls {
-			converted.OfAssistant.ToolCalls = append(converted.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}})
+			converted.OfAssistant.ToolCalls = append(converted.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallUnionParam{OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}}})
 		}
 		return converted, nil
 	default:

@@ -6,9 +6,9 @@ import (
 
 	"github.com/nep-0/harness/agent"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/shared"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/shared"
 )
 
 // OpenAICompactor summarizes history through Chat Completions.
@@ -47,7 +47,7 @@ func (c *OpenAICompactor) Compact(ctx context.Context, previousSummary string, t
 		case agent.RoleAssistant:
 			assistant := openai.AssistantMessage(message.Content)
 			for _, call := range message.ToolCalls {
-				assistant.OfAssistant.ToolCalls = append(assistant.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}})
+				assistant.OfAssistant.ToolCalls = append(assistant.OfAssistant.ToolCalls, openai.ChatCompletionMessageToolCallUnionParam{OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{ID: call.ID, Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{Name: call.Name, Arguments: call.Arguments}}})
 			}
 			messages = append(messages, assistant)
 		case agent.RoleTool:
