@@ -18,13 +18,17 @@ var toolNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 // Runner executes an Agent against streamed Chat Completions.
 type Runner struct {
-	config  Config
+	config  runnerConfig
 	client  openai.Client
 	tools   map[string]Tool
 	eventMu sync.Mutex
 }
 
-func NewRunner(config Config) (*Runner, error) {
+func NewRunner(options ...RunnerOption) (*Runner, error) {
+	config := runnerConfig{}
+	for _, option := range options {
+		option(&config)
+	}
 	if config.APIKey == "" {
 		return nil, errors.New("agent: APIKey is required")
 	}
@@ -61,21 +65,22 @@ func NewRunner(config Config) (*Runner, error) {
 	return r, nil
 }
 
-// Run returns the complete transcript, or the partial transcript when it fails.
-func (r *Runner) Run(ctx context.Context, source Agent, options ...RunOption) (Transcript, error) {
-	if source == nil {
-		return nil, errors.New("agent: agent is required")
-	}
+// RunTurn returns the updated snapshot, or the partial snapshot when it fails.
+// It never waits for external input.
+func (r *Runner) RunTurn(ctx context.Context, snapshot RunSnapshot, messages []Message, options ...RunOption) (RunSnapshot, error) {
 	settings := runOptions{}
 	for _, option := range options {
 		option(&settings)
 	}
+	if settings.snapshot.Transcript != nil || settings.snapshot.MiddlewareState != nil {
+		snapshot = settings.snapshot
+	}
 	for _, middleware := range r.config.Middlewares {
-		if err := middleware.UnmarshalState(settings.snapshot.MiddlewareState[middleware.ID()]); err != nil {
-			return nil, err
+		if err := middleware.UnmarshalState(snapshot.MiddlewareState[middleware.ID()]); err != nil {
+			return snapshot, err
 		}
 	}
-	transcript := settings.snapshot.Transcript
+	transcript := snapshot.Transcript
 	checkpoint := func() error {
 		if settings.checkpoint == nil {
 			return nil
@@ -84,46 +89,39 @@ func (r *Runner) Run(ctx context.Context, source Agent, options ...RunOption) (T
 	}
 	turns := 0
 	for {
-		turn, err := source.Next(ctx, cloneTranscript(transcript))
-		if err != nil {
-			return transcript, err
+		if err := validateAgentMessages(messages); err != nil {
+			return r.snapshot(transcript), err
 		}
-		if err := validateAgentMessages(turn.Messages); err != nil {
-			return transcript, err
-		}
-		transcript = append(transcript, turn.Messages...)
+		transcript = append(transcript, messages...)
 		if err := checkpoint(); err != nil {
-			return transcript, err
-		}
-		if turn.Done {
-			return transcript, nil
+			return r.snapshot(transcript), err
 		}
 		for {
 			if r.config.MaxTurns > 0 && turns >= r.config.MaxTurns {
-				return transcript, ErrMaxTurns
+				return r.snapshot(transcript), ErrMaxTurns
 			}
 			turns++
 			assistant, err := r.complete(ctx, transcript)
 			if err != nil {
-				return transcript, err
+				return r.snapshot(transcript), err
 			}
 			if err := checkpoint(); err != nil {
-				return transcript, err
+				return r.snapshot(transcript), err
 			}
 			transcript = append(transcript, assistant)
 			if err := checkpoint(); err != nil {
-				return transcript, err
+				return r.snapshot(transcript), err
 			}
 			if len(assistant.ToolCalls) == 0 {
-				break
+				return r.snapshot(transcript), nil
 			}
 			results, err := r.executeTools(ctx, assistant.ToolCalls)
 			if err != nil {
-				return transcript, err
+				return r.snapshot(transcript), err
 			}
 			transcript = append(transcript, results...)
 			if err := checkpoint(); err != nil {
-				return transcript, err
+				return r.snapshot(transcript), err
 			}
 		}
 	}

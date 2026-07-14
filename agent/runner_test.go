@@ -7,10 +7,10 @@ import (
 )
 
 func TestNewRunnerValidatesConfig(t *testing.T) {
-	if _, err := NewRunner(Config{}); err == nil {
+	if _, err := NewRunner(); err == nil {
 		t.Fatal("expected missing API key error")
 	}
-	if _, err := NewRunner(Config{APIKey: "key"}); err == nil {
+	if _, err := NewRunner(WithAPIKey("key")); err == nil {
 		t.Fatal("expected missing model error")
 	}
 }

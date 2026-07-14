@@ -39,7 +39,11 @@ type Turn struct {
 
 // Agent supplies messages for each application-controlled turn.
 type Agent interface {
-	Next(context.Context, Transcript) (Turn, error)
+	Decide(context.Context, RunSnapshot) (Action, error)
+}
+type Action struct {
+	Messages []Message
+	Done     bool
 }
 type ToolHandler func(context.Context, json.RawMessage) (string, error)
 type Tool struct {
@@ -65,14 +69,35 @@ type Event struct {
 	ToolCall ToolCall
 }
 
-// Config configures a Runner. APIKey and Model are required. MaxTurns of zero
-// permits unlimited completion requests.
-type Config struct {
+type runnerConfig struct {
 	APIKey, Model, BaseURL string
 	MaxTurns               int
 	Tools                  []Tool
 	OnEvent                func(Event) error
 	Middlewares            []ContextMiddleware
+}
+
+// RunnerOption configures a Runner at construction time.
+type RunnerOption func(*runnerConfig)
+
+func WithAPIKey(value string) RunnerOption {
+	return func(config *runnerConfig) { config.APIKey = value }
+}
+func WithModel(value string) RunnerOption { return func(config *runnerConfig) { config.Model = value } }
+func WithBaseURL(value string) RunnerOption {
+	return func(config *runnerConfig) { config.BaseURL = value }
+}
+func WithMaxTurns(value int) RunnerOption {
+	return func(config *runnerConfig) { config.MaxTurns = value }
+}
+func WithTool(tool Tool) RunnerOption {
+	return func(config *runnerConfig) { config.Tools = append(config.Tools, tool) }
+}
+func WithMiddleware(middleware ContextMiddleware) RunnerOption {
+	return func(config *runnerConfig) { config.Middlewares = append(config.Middlewares, middleware) }
+}
+func WithEventHandler(handler func(Event) error) RunnerOption {
+	return func(config *runnerConfig) { config.OnEvent = handler }
 }
 
 // ContextMiddleware derives the transcript sent to the model. It must not

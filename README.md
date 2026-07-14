@@ -47,41 +47,30 @@ go run ./cmd/harness -model gpt-4.1 -window 20
 `-window` and `-compact-tokens` cannot be combined. A sliding window discards
 old model context, while compaction retains it in a summary.
 
-## Build an agent
+## Run one turn
 
-Implement `agent.Agent`:
-
-```go
-type Greeter struct{}
-
-func (Greeter) Next(ctx context.Context, transcript agent.Transcript) (agent.Turn, error) {
-	if len(transcript) == 0 {
-		return agent.Turn{Messages: []agent.Message{{
-			Role: agent.RoleUser,
-			Content: "Say hello.",
-		}}}, nil
-	}
-	return agent.Turn{Done: true}, nil
-}
-```
-
-Construct a runner with an explicit API key and model, then run the agent:
+Construct a runner with an explicit API key and model, then submit messages:
 
 ```go
-runner, err := agent.NewRunner(agent.Config{
-	APIKey: os.Getenv("OPENAI_API_KEY"),
-	Model:  "gpt-4.1",
-})
+runner, err := agent.NewRunner(
+	agent.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
+	agent.WithModel("gpt-4.1"),
+)
 if err != nil {
 	return err
 }
 
-transcript, err := runner.Run(ctx, Greeter{})
+snapshot, err := runner.RunTurn(ctx, agent.RunSnapshot{}, []agent.Message{{
+	Role: agent.RoleUser,
+	Content: "Say hello.",
+})
 ```
 
-Agents may create system, developer, and user messages. The runner creates
-assistant and tool-result messages, so it can preserve valid tool-call
-sequences.
+Callers create system, developer, and user messages. The runner creates
+assistant and tool-result messages, so it can preserve valid tool-call sequences.
+
+For autonomous workflows, implement `agent.Agent.Decide` and use `agent.Drive`.
+The runner itself never waits for external input.
 
 ## Packages
 
@@ -95,7 +84,7 @@ sequences.
 ## Context middleware
 
 Context middleware changes only the transcript sent to the model. The runner
-retains the complete canonical transcript and returns it from `Run`.
+retains the complete canonical transcript and returns it in a `RunSnapshot`.
 
 Every middleware has a stable ID and serializable state:
 

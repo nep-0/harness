@@ -30,27 +30,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "-window and -compact-tokens cannot be used together")
 		os.Exit(2)
 	}
-	config := agent.Config{APIKey: *apiKey, Model: *model, BaseURL: *baseURL, MaxTurns: *maxTurns, Tools: []agent.Tool{weather.Client{}.Tool(), ip.Client{}.Tool()}, OnEvent: func(event agent.Event) error {
-		switch event.Type {
-		case agent.EventTextDelta:
-			_, err := fmt.Fprint(os.Stdout, event.Delta)
-			return err
-		case agent.EventToolStarted:
-			_, err := fmt.Fprintf(os.Stdout, "\n[calling tool: %s]\n", event.ToolCall.Name)
-			return err
-		case agent.EventToolFinished:
-			_, err := fmt.Fprintf(os.Stdout, "[tool finished: %s]\n", event.ToolCall.Name)
-			return err
-		}
-		return nil
-	}}
+	runnerOptions := baseRunnerOptions(*apiKey, *model, *baseURL, *maxTurns)
 	if *window > 0 {
 		slidingWindow, err := middleware.NewSlidingWindow(*window)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-		config.Middlewares = append(config.Middlewares, slidingWindow)
+		runnerOptions = append(runnerOptions, agent.WithMiddleware(slidingWindow))
 	}
 	if *compactTokens > 0 {
 		compactor, err := middleware.NewOpenAICompactor(*apiKey, *model, *baseURL)
@@ -63,14 +50,15 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-		config.Middlewares = append(config.Middlewares, compact)
+		runnerOptions = append(runnerOptions, agent.WithMiddleware(compact))
 	}
-	runner, err := agent.NewRunner(config)
+	runner, err := agent.NewRunner(runnerOptions...)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 	interactive := cli.NewInteractiveAgent(os.Stdin, os.Stdout)
+	snapshot := agent.RunSnapshot{}
 	options := []agent.RunOption{}
 	if *sessionDir != "" || *sessionID != "" {
 		if *sessionDir == "" || *sessionID == "" {
@@ -85,10 +73,50 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		options = append(options, agent.WithSnapshot(agent.RunSnapshot{Transcript: value.Transcript, MiddlewareState: value.MiddlewareState}), agent.WithCheckpoint(session.Checkpoint(store, &value)))
+		snapshot = agent.RunSnapshot{Transcript: value.Transcript, MiddlewareState: value.MiddlewareState}
+		options = append(options, agent.WithCheckpoint(session.Checkpoint(store, &value)))
 	}
-	if _, err := runner.Run(context.Background(), interactive, options...); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	for {
+		turn, err := interactive.Next(context.Background(), snapshot.Transcript)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if turn.Done {
+			break
+		}
+		snapshot, err = runner.RunTurn(context.Background(), snapshot, turn.Messages, options...)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+}
+
+func baseRunnerOptions(apiKey, model, baseURL string, maxTurns int) []agent.RunnerOption {
+	return []agent.RunnerOption{
+		agent.WithAPIKey(apiKey),
+		agent.WithModel(model),
+		agent.WithBaseURL(baseURL),
+		agent.WithMaxTurns(maxTurns),
+		agent.WithTool(weather.Client{}.Tool()),
+		agent.WithTool(ip.Client{}.Tool()),
+		agent.WithEventHandler(renderEvent),
+	}
+}
+
+func renderEvent(event agent.Event) error {
+	switch event.Type {
+	case agent.EventTextDelta:
+		_, err := fmt.Fprint(os.Stdout, event.Delta)
+		return err
+	case agent.EventToolStarted:
+		_, err := fmt.Fprintf(os.Stdout, "\n[calling tool: %s]\n", event.ToolCall.Name)
+		return err
+	case agent.EventToolFinished:
+		_, err := fmt.Fprintf(os.Stdout, "[tool finished: %s]\n", event.ToolCall.Name)
+		return err
+	default:
+		return nil
 	}
 }
