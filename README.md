@@ -72,6 +72,41 @@ assistant and tool-result messages, so it can preserve valid tool-call sequences
 For autonomous workflows, implement `agent.Agent.Decide` and use `agent.Drive`.
 The runner itself never waits for external input.
 
+## Autonomous workflow
+
+An autonomous agent decides what messages to submit next. `Drive` owns the
+loop; `RunTurn` still owns each model/tool interaction.
+
+```go
+type ResearchAgent struct{}
+
+func (ResearchAgent) Decide(
+	ctx context.Context,
+	snapshot agent.RunSnapshot,
+) (agent.Action, error) {
+	if len(snapshot.Transcript) == 0 {
+		return agent.Action{Messages: []agent.Message{{
+			Role:    agent.RoleUser,
+			Content: "Find the current weather in Nanjing and summarize it.",
+		}}}, nil
+	}
+
+	// The previous logical turn, including any tool calls, is complete.
+	return agent.Action{Done: true}, nil
+}
+
+snapshot, err := agent.Drive(
+	ctx,
+	runner,
+	ResearchAgent{},
+	agent.RunSnapshot{},
+)
+```
+
+Return `Done: true` to stop. Returning neither messages nor `Done` is an
+error, preventing a busy loop. For user-driven applications, do not use
+`Drive`; submit each incoming message directly with `RunTurn`.
+
 ## Packages
 
 - `agent`: runner, messages, tools, events, run snapshots, and middleware API.
