@@ -19,7 +19,7 @@ func main() {
 	apiKey := flag.String("api-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key")
 	model := flag.String("model", "", "Chat Completions model")
 	baseURL := flag.String("base-url", "", "optional API base URL")
-	window := flag.Int("window", 0, "model-visible message window; zero disables it")
+	window := flag.Int("window", 0, "model-visible complete-turn window; zero disables it")
 	maxTurns := flag.Int("max-turns", 0, "maximum completion requests; zero is unlimited")
 	compactTokens := flag.Int("compact-tokens", 0, "approximate context-token budget; zero disables compaction")
 	sessionDir := flag.String("session-dir", "", "directory for persisted sessions")

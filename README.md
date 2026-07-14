@@ -38,7 +38,7 @@ Enable automatic context compaction with an approximate context budget:
 go run ./cmd/harness -model gpt-4.1 -compact-tokens 6000
 ```
 
-Alternatively, retain only a fixed number of recent messages in model context:
+Alternatively, retain only a fixed number of recent complete turns in model context:
 
 ```bash
 go run ./cmd/harness -model gpt-4.1 -window 20
