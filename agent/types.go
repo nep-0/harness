@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 )
 
 // ErrMaxTurns is returned when a configured completion-request limit is reached.
@@ -75,6 +76,7 @@ type runnerConfig struct {
 	Tools                  []Tool
 	OnEvent                func(Event) error
 	Middlewares            []ContextMiddleware
+	HTTPClient             *http.Client
 }
 
 // RunnerOption configures a Runner at construction time.
@@ -86,6 +88,11 @@ func WithAPIKey(value string) RunnerOption {
 func WithModel(value string) RunnerOption { return func(config *runnerConfig) { config.Model = value } }
 func WithBaseURL(value string) RunnerOption {
 	return func(config *runnerConfig) { config.BaseURL = value }
+}
+
+// WithHTTPClient sets the HTTP client used for OpenAI API requests.
+func WithHTTPClient(client *http.Client) RunnerOption {
+	return func(config *runnerConfig) { config.HTTPClient = client }
 }
 func WithMaxTurns(value int) RunnerOption {
 	return func(config *runnerConfig) { config.MaxTurns = value }

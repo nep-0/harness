@@ -36,7 +36,7 @@ func TestRunTurnStreamsTextAgainstLocalCompatibleEndpoint(t *testing.T) {
 func TestRunTurnExecutesToolsAndSendsFailuresBackToModel(t *testing.T) {
 	server := completionServer(t, func(call int, body request) []streamChunk {
 		if call == 1 {
-			return []streamChunk{{`{"role":"assistant","tool_calls":[{"index":0,"id":"invalid","type":"function","function":{"name":"echo","arguments":"{"}},{"index":1,"id":"failed","type":"function","function":{"name":"echo","arguments":"{\\"value\\":\\"ok\\"}"}}]}`, "tool_calls"}}
+			return []streamChunk{{`{"role":"assistant","tool_calls":[{"index":0,"id":"invalid","type":"function","function":{"name":"echo","arguments":"{"}},{"index":1,"id":"failed","type":"function","function":{"name":"echo","arguments":"{\"value\":\"ok\"}"}}]}`, "tool_calls"}}
 		}
 		if len(body.Messages) != 4 || body.Messages[2].ToolCallID != "invalid" || body.Messages[3].ToolCallID != "failed" {
 			t.Fatalf("tool results %#v", body.Messages)
@@ -60,7 +60,7 @@ func TestRunTurnExecutesToolsAndSendsFailuresBackToModel(t *testing.T) {
 func TestRunTurnExecutesSuccessfulToolCall(t *testing.T) {
 	server := completionServer(t, func(call int, body request) []streamChunk {
 		if call == 1 {
-			return []streamChunk{{`{"role":"assistant","tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"echo","arguments":"{\\"value\\":\\"ok\\"}"}}]}`, "tool_calls"}}
+			return []streamChunk{{`{"role":"assistant","tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"echo","arguments":"{\"value\":\"ok\"}"}}]}`, "tool_calls"}}
 		}
 		if len(body.Messages) != 3 || body.Messages[2].ToolCallID != "call-1" {
 			t.Fatalf("tool request %#v", body.Messages)

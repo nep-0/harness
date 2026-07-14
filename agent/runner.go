@@ -62,6 +62,9 @@ func NewRunner(options ...RunnerOption) (*Runner, error) {
 	if config.BaseURL != "" {
 		opts = append(opts, option.WithBaseURL(config.BaseURL))
 	}
+	if config.HTTPClient != nil {
+		opts = append(opts, option.WithHTTPClient(config.HTTPClient))
+	}
 	r.client = openai.NewClient(opts...)
 	return r, nil
 }
