@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nep-0/harness/agent"
 	"github.com/nep-0/harness/cli"
@@ -31,6 +32,18 @@ func main() {
 		os.Exit(2)
 	}
 	runnerOptions := baseRunnerOptions(*apiKey, *model, *baseURL, *maxTurns)
+	runnerOptions = append(runnerOptions, agent.WithMiddleware(middleware.NewRuntimeMetadata(
+		func(context.Context) (map[string]any, error) {
+			username := os.Getenv("USER")
+			if username == "" {
+				username = "unknown"
+			}
+			return map[string]any{"username": username}, nil
+		},
+		func(context.Context) (map[string]any, error) {
+			return map[string]any{"current_time": time.Now().Format(time.RFC3339)}, nil
+		},
+	)))
 	if *window > 0 {
 		slidingWindow, err := middleware.NewSlidingWindow(*window)
 		if err != nil {
