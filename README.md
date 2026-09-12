@@ -32,6 +32,16 @@ go run ./cmd/harness \
   -session project-chat
 ```
 
+Enable the bounded coding workspace tools for a chosen directory:
+
+```bash
+go run ./cmd/harness -model gpt-4.1 -coding-tools-root .
+```
+
+This enables `read_file`, `list_dir`, `grep_files`, and `apply_patch` rooted at
+that directory, plus `shell`. `shell` is trusted and unrestricted; use an
+external OS sandbox when host filesystem or network access is unacceptable.
+
 Enable automatic context compaction with an approximate context budget:
 
 ```bash
@@ -115,6 +125,39 @@ error, preventing a busy loop. For user-driven applications, do not use
 - `session`: JSON file-backed session persistence through the `Store` interface.
 - `cli`: an interactive terminal agent.
 - `cmd/harness`: the runnable interactive CLI.
+
+## Coding workspace tools
+
+`tools/coding` supplies a standard tool set rooted at one workspace directory:
+`read_file`, `list_dir`, `grep_files`, `apply_patch`, and `shell`.
+
+```go
+workspace, err := coding.New(coding.Config{Root: "."})
+if err != nil {
+	return err
+}
+defer workspace.Close()
+
+options := []agent.RunnerOption{
+	agent.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
+	agent.WithModel("gpt-4.1"),
+}
+for _, tool := range workspace.Tools() {
+	options = append(options, agent.WithTool(tool))
+}
+runner, err := agent.NewRunner(options...)
+```
+
+Filesystem operations use `os.Root`, so relative paths and symlinks cannot
+escape `Config.Root`. `apply_patch` atomically replaces one existing text file
+only when its full expected content matches; it does not create, delete, or
+rename files. Read, search, and command output have configurable bounded sizes.
+
+`shell` runs structured `argv` commands from the workspace directory, but is
+**trusted and unrestricted**: its working directory and filtered environment do
+not sandbox host filesystem or network access. Enable it only where arbitrary
+host command execution is acceptable; use an OS sandbox externally when it is
+not.
 
 ## Context middleware
 

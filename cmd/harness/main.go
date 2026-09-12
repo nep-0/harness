@@ -12,6 +12,7 @@ import (
 	"github.com/nep-0/harness/cli"
 	"github.com/nep-0/harness/middleware"
 	"github.com/nep-0/harness/session"
+	"github.com/nep-0/harness/tools/coding"
 	"github.com/nep-0/harness/tools/ip"
 	"github.com/nep-0/harness/tools/weather"
 )
@@ -25,6 +26,7 @@ func main() {
 	compactTokens := flag.Int("compact-tokens", 0, "approximate context-token budget; zero disables compaction")
 	sessionDir := flag.String("session-dir", "", "directory for persisted sessions")
 	sessionID := flag.String("session", "", "session ID to create or resume")
+	codingToolsRoot := flag.String("coding-tools-root", "", "enable coding tools rooted at this directory; shell remains trusted and unrestricted")
 	flag.Parse()
 
 	if *window > 0 && *compactTokens > 0 {
@@ -64,6 +66,19 @@ func main() {
 			os.Exit(2)
 		}
 		runnerOptions = append(runnerOptions, agent.WithMiddleware(compact))
+	}
+	var workspace *coding.Workspace
+	if *codingToolsRoot != "" {
+		createdWorkspace, err := coding.New(coding.Config{Root: *codingToolsRoot})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		workspace = createdWorkspace
+		defer workspace.Close()
+		for _, tool := range workspace.Tools() {
+			runnerOptions = append(runnerOptions, agent.WithTool(tool))
+		}
 	}
 	runner, err := agent.NewRunner(runnerOptions...)
 	if err != nil {
